@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-/**
- * GET /api/questions/:id/results
- * 問題の結果取得
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const questionId = (await params).id
 
-    // 問題情報取得
+    // 問題情報を取得
     const { data: question, error: questionError } = await supabase
       .from('questions')
-      .select('id, title, points, status')
-      .eq('id', id)
+      .select('*')
+      .eq('id', questionId)
       .single()
 
     if (questionError || !question) {
@@ -26,11 +22,19 @@ export async function GET(
       )
     }
 
-    // 回答一覧と投票数を取得
+    // finishedステータスでない場合はアクセス不可
+    if ((question as any).status !== 'finished') {
+      return NextResponse.json(
+        { error: { code: 'INVALID_STATUS', message: 'Results not available yet' } },
+        { status: 400 }
+      )
+    }
+
+    // 各回答の投票数を集計
     const { data: options, error: optionsError } = await supabase
       .from('options')
-      .select('id, team_id, content, image_url')
-      .eq('question_id', id)
+      .select('*, teams!inner(name, color)')
+      .eq('question_id', questionId)
 
     if (optionsError) {
       return NextResponse.json(
@@ -39,101 +43,81 @@ export async function GET(
       )
     }
 
-    // 各選択肢の投票数とチーム情報を取得
-    const results = await Promise.all(
-      (options || []).map(async (option) => {
-        // 投票数カウント
+    // 各オプションの投票数を取得
+    const optionsWithVotes = await Promise.all(
+      (options || []).map(async (option: any) => {
         const { count } = await supabase
           .from('votes')
           .select('*', { count: 'exact', head: true })
           .eq('option_id', option.id)
 
-        // チーム情報取得
-        const { data: team } = await supabase
-          .from('teams')
-          .select('name, color')
-          .eq('id', option.team_id)
-          .single()
-
         return {
-          option_id: option.id,
-          team_id: option.team_id,
-          team_name: team?.name || '',
-          team_color: team?.color || null,
-          content: option.content,
-          image_url: option.image_url,
-          vote_count: count || 0,
+          ...option,
+          vote_count: count || 0
         }
       })
     )
 
-    // 投票数でソート（降順）
-    results.sort((a, b) => b.vote_count - a.vote_count)
+    // 投票数でソートして順位を付ける
+    optionsWithVotes.sort((a, b) => b.vote_count - a.vote_count)
 
-    // 順位とポイントを付与
-    const resultsWithRank = results.map((result, index) => {
+    // 結果を整形
+    const results = optionsWithVotes.map((option, index) => {
+      // ポイント計算（1位: 300pt, 2位: 100pt, 3位: 50pt）
       let pointsEarned = 0
-
-      // 1位: 満点の3倍、2位: 満点、3位: 満点の半分
-      if (index === 0) {
-        pointsEarned = question.points * 3
-      } else if (index === 1) {
-        pointsEarned = question.points
-      } else if (index === 2) {
-        pointsEarned = Math.floor(question.points * 0.5)
-      }
+      if (index === 0 && option.vote_count > 0) pointsEarned = 300
+      else if (index === 1 && option.vote_count > 0) pointsEarned = 100
+      else if (index === 2 && option.vote_count > 0) pointsEarned = 50
 
       return {
         rank: index + 1,
-        ...result,
-        points_earned: pointsEarned,
+        option_id: option.id,
+        team_id: option.team_id,
+        team_name: option.teams.name,
+        team_color: option.teams.color,
+        content: option.content,
+        image_url: option.image_url,
+        vote_count: option.vote_count,
+        points_earned: pointsEarned
       }
     })
 
-    // 総投票数
+    // 総投票数を取得
     const { count: totalVotes } = await supabase
       .from('votes')
       .select('*', { count: 'exact', head: true })
-      .eq('question_id', id)
+      .eq('question_id', questionId)
 
-    // スコア更新（問題がfinishedステータスの場合のみ）
-    if (question.status === 'finished') {
-      for (const result of resultsWithRank) {
-        if (result.points_earned > 0) {
-          await supabase
-            .from('teams')
-            .update({
-              score: supabase.rpc('increment', { x: result.points_earned })
-            })
-            .eq('id', result.team_id)
-
-          // RPCがない場合の代替: 現在のスコアを取得して加算
-          const { data: teamData } = await supabase
-            .from('teams')
-            .select('score')
-            .eq('id', result.team_id)
-            .single()
-
-          if (teamData) {
-            await supabase
-              .from('teams')
-              .update({ score: (teamData.score || 0) + result.points_earned })
-              .eq('id', result.team_id)
-          }
-        }
+    // スコアを更新（1位のチームのみ）
+    if (results.length > 0 && results[0].vote_count > 0) {
+      const { data: currentTeam } = await supabase
+        .from('teams')
+        .select('score')
+        .eq('id', results[0].team_id)
+        .single()
+      
+      if (currentTeam) {
+        await (supabase as any)
+          .from('teams')
+          .update({ 
+            score: (currentTeam as { score: number }).score + results[0].points_earned
+          })
+          .eq('id', results[0].team_id)
       }
     }
 
-    return NextResponse.json({
+    const response = {
       question: {
-        id: question.id,
-        title: question.title,
-        points: question.points,
-        status: question.status,
+        id: (question as any).id,
+        title: (question as any).title,
+        points: (question as any).points,
+        status: (question as any).status
       },
-      results: resultsWithRank,
-      total_votes: totalVotes || 0,
-    })
+      results: results,
+      total_votes: totalVotes || 0
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },

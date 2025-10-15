@@ -1,48 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-/**
- * PATCH /api/questions/:id/status
- * 問題ステータス更新
- */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const questionId = (await params).id
     const body = await request.json()
-    const { status } = body
 
-    if (!status) {
+    if (!body.status) {
       return NextResponse.json(
         { error: { code: 'INVALID_REQUEST', message: 'Status is required' } },
         { status: 400 }
       )
     }
 
-    // ステータスの検証
+    // ステータスの妥当性チェック
     const validStatuses = ['draft', 'active', 'voting', 'finished']
-    if (!validStatuses.includes(status)) {
+    if (!validStatuses.includes(body.status)) {
       return NextResponse.json(
         { error: { code: 'INVALID_REQUEST', message: 'Invalid status' } },
         { status: 400 }
       )
     }
 
-    const updateData: any = { status }
+    // 現在の問題を取得
+    const { data: currentQuestion, error: fetchError } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('id', questionId)
+      .single()
 
-    // ステータスに応じてタイムスタンプを更新
-    if (status === 'active') {
+    if (fetchError || !currentQuestion) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Question not found' } },
+        { status: 404 }
+      )
+    }
+
+    // ステータス更新用のデータを準備
+    const updateData: any = { status: body.status }
+
+    // activeに変更時はstarted_atを設定
+    if (body.status === 'active' && !(currentQuestion as any).started_at) {
       updateData.started_at = new Date().toISOString()
-    } else if (status === 'finished') {
+    }
+
+    // finishedに変更時はfinished_atを設定
+    if (body.status === 'finished' && !(currentQuestion as any).finished_at) {
       updateData.finished_at = new Date().toISOString()
     }
 
-    const { data, error } = await supabase
+    // ステータスを更新
+    const { data, error } = await (supabase as any)
       .from('questions')
       .update(updateData)
-      .eq('id', id)
+      .eq('id', questionId)
       .select()
       .single()
 
@@ -54,10 +68,10 @@ export async function PATCH(
     }
 
     return NextResponse.json({
-      id: data.id,
-      status: data.status,
-      started_at: data.started_at,
-      finished_at: data.finished_at,
+      id: (data as any).id,
+      status: (data as any).status,
+      started_at: (data as any).started_at,
+      finished_at: (data as any).finished_at
     })
   } catch (error) {
     return NextResponse.json(

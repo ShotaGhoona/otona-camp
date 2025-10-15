@@ -1,16 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-/**
- * GET /api/scoreboard
- * スコアボード取得
- */
 export async function GET() {
   try {
-    // 全チーム取得（スコア順）
+    // チーム一覧を取得（スコア降順）
     const { data: teams, error: teamsError } = await supabase
       .from('teams')
-      .select('id, name, color, score')
+      .select('*')
       .order('score', { ascending: false })
 
     if (teamsError) {
@@ -21,9 +17,9 @@ export async function GET() {
     }
 
     // 各チームのメンバー数を取得
-    const teamsWithMemberCount = await Promise.all(
-      (teams || []).map(async (team, index) => {
-        const { count } = await supabase
+    const teamsWithInfo = await Promise.all(
+      ((teams as any[]) || []).map(async (team, index) => {
+        const { count: memberCount } = await supabase
           .from('members')
           .select('*', { count: 'exact', head: true })
           .eq('team_id', team.id)
@@ -34,12 +30,12 @@ export async function GET() {
           team_name: team.name,
           team_color: team.color,
           score: team.score,
-          member_count: count || 0,
+          member_count: memberCount || 0
         }
       })
     )
 
-    // 完了した問題数と総問題数
+    // 問題の統計情報を取得
     const { count: totalQuestions } = await supabase
       .from('questions')
       .select('*', { count: 'exact', head: true })
@@ -49,11 +45,13 @@ export async function GET() {
       .select('*', { count: 'exact', head: true })
       .eq('status', 'finished')
 
-    return NextResponse.json({
-      teams: teamsWithMemberCount,
+    const response = {
+      teams: teamsWithInfo,
       total_questions: totalQuestions || 0,
-      completed_questions: completedQuestions || 0,
-    })
+      completed_questions: completedQuestions || 0
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },

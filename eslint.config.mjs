@@ -20,6 +20,14 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  {
+    rules: {
+      // MVP開発中はanyを許可
+      "@typescript-eslint/no-explicit-any": "off",
+      // 未使用変数は警告のみ
+      "@typescript-eslint/no-unused-vars": "warn",
+    },
+  },
 ];
 
 export default eslintConfig;

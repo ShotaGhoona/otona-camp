@@ -1,71 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-/**
- * POST /api/questions/:id/votes
- * 投票
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
-    const memberId = request.headers.get('Authorization')
+    const questionId = (await params).id
     const body = await request.json()
-    const { option_id } = body
+    const memberId = request.headers.get('Authorization')
 
     if (!memberId) {
       return NextResponse.json(
-        { error: { code: 'UNAUTHORIZED', message: 'Member ID is required' } },
+        { error: { code: 'UNAUTHORIZED', message: 'Authorization required' } },
         { status: 401 }
       )
     }
 
-    if (!option_id) {
+    if (!body.option_id) {
       return NextResponse.json(
-        { error: { code: 'INVALID_REQUEST', message: 'Option ID is required' } },
+        { error: { code: 'INVALID_REQUEST', message: 'option_id is required' } },
         { status: 400 }
       )
     }
 
-    // 問題のステータス確認
-    const { data: question } = await supabase
+    // 問題のステータスを確認
+    const { data: question, error: questionError } = await supabase
       .from('questions')
       .select('status')
-      .eq('id', id)
+      .eq('id', questionId)
       .single()
 
-    if (!question) {
+    if (questionError || !question) {
       return NextResponse.json(
         { error: { code: 'NOT_FOUND', message: 'Question not found' } },
         { status: 404 }
       )
     }
 
-    if (question.status !== 'voting') {
+    if ((question as any).status !== 'voting') {
       return NextResponse.json(
-        { error: { code: 'INVALID_STATUS', message: 'Question is not accepting votes' } },
+        { error: { code: 'INVALID_STATUS', message: 'Voting is not active' } },
         { status: 400 }
       )
     }
 
-    // 既に投票済みか確認
-    const { data: existingVote } = await supabase
-      .from('votes')
-      .select('id')
-      .eq('question_id', id)
-      .eq('member_id', memberId)
+    // 選択肢が存在するか確認
+    const { data: option, error: optionError } = await supabase
+      .from('options')
+      .select('team_id')
+      .eq('id', body.option_id)
+      .eq('question_id', questionId)
       .single()
 
-    if (existingVote) {
+    if (optionError || !option) {
       return NextResponse.json(
-        { error: { code: 'ALREADY_VOTED', message: 'Member has already voted' } },
-        { status: 400 }
+        { error: { code: 'NOT_FOUND', message: 'Option not found' } },
+        { status: 404 }
       )
     }
 
-    // メンバーのチームIDを取得
+    // 自分のチームIDを取得
     const { data: member } = await supabase
       .from('members')
       .select('team_id')
@@ -79,36 +74,37 @@ export async function POST(
       )
     }
 
-    // 選択肢のチームIDを取得
-    const { data: option } = await supabase
-      .from('options')
-      .select('team_id')
-      .eq('id', option_id)
-      .single()
-
-    if (!option) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Option not found' } },
-        { status: 404 }
-      )
-    }
-
     // 自分のチームには投票不可
-    if (member.team_id === option.team_id) {
+    if ((option as any).team_id === (member as any).team_id) {
       return NextResponse.json(
-        { error: { code: 'CANNOT_VOTE_OWN_TEAM', message: 'Cannot vote for your own team' } },
+        { error: { code: 'CANNOT_VOTE_OWN_TEAM', message: 'Cannot vote for own team' } },
         { status: 400 }
       )
     }
 
-    // 投票作成
+    // 既に投票済みか確認
+    const { data: existingVote } = await supabase
+      .from('votes')
+      .select('*')
+      .eq('question_id', questionId)
+      .eq('member_id', memberId)
+      .single()
+
+    if (existingVote) {
+      return NextResponse.json(
+        { error: { code: 'ALREADY_VOTED', message: 'Already voted' } },
+        { status: 400 }
+      )
+    }
+
+    // 投票を作成
     const { data, error } = await supabase
       .from('votes')
       .insert({
-        option_id,
+        option_id: body.option_id,
         member_id: memberId,
-        question_id: id,
-      })
+        question_id: questionId
+      } as any)
       .select()
       .single()
 
@@ -119,7 +115,7 @@ export async function POST(
       )
     }
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(data as any, { status: 201 })
   } catch (error) {
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },

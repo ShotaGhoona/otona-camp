@@ -58,7 +58,7 @@ export type Database = {
     Tables: {
       teams: {
         Row: Team
-        Insert: Omit<Team, 'id' | 'created_at'>
+        Insert: Omit<Team, 'id' | 'created_at' | 'score'> & { score?: number }
         Update: Partial<Omit<Team, 'id' | 'created_at'>>
       }
       members: {
@@ -68,7 +68,7 @@ export type Database = {
       }
       questions: {
         Row: Question
-        Insert: Omit<Question, 'id' | 'created_at' | 'started_at' | 'finished_at'>
+        Insert: Omit<Question, 'id' | 'created_at' | 'started_at' | 'finished_at'> & { status?: QuestionStatus }
         Update: Partial<Omit<Question, 'id' | 'created_at'>>
       }
       options: {

@@ -12,9 +12,9 @@ export async function apiClient(
   const memberId = getMemberId()
   const teamId = getTeamId()
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   }
 
   // セッション情報があればヘッダーに追加
@@ -45,6 +45,7 @@ export async function get<T>(url: string): Promise<T> {
 /**
  * POST リクエストヘルパー
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function post<T>(url: string, data?: any): Promise<T> {
   const response = await apiClient(url, {
     method: 'POST',
@@ -59,6 +60,7 @@ export async function post<T>(url: string, data?: any): Promise<T> {
 /**
  * PATCH リクエストヘルパー
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function patch<T>(url: string, data?: any): Promise<T> {
   const response = await apiClient(url, {
     method: 'PATCH',

@@ -1,24 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-/**
- * GET /api/questions/:id
- * 問題詳細取得
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const questionId = (await params).id
     const memberId = request.headers.get('Authorization')
-    const teamId = request.headers.get('X-Team-ID')
 
-    // 問題情報取得
+    // 問題詳細を取得
     const { data: question, error: questionError } = await supabase
       .from('questions')
       .select('*')
-      .eq('id', id)
+      .eq('id', questionId)
       .single()
 
     if (questionError || !question) {
@@ -28,61 +23,78 @@ export async function GET(
       )
     }
 
-    // 自チームの回答状況
-    let myTeamAnswered = false
-    if (teamId) {
-      const { data: option } = await supabase
-        .from('options')
-        .select('id')
-        .eq('question_id', id)
-        .eq('team_id', teamId)
-        .single()
-
-      myTeamAnswered = !!option
-    }
-
-    // 総チーム数と回答済みチーム数
+    // チーム数を取得
     const { count: totalTeams } = await supabase
       .from('teams')
       .select('*', { count: 'exact', head: true })
 
+    // 回答済みチーム数を取得
     const { count: answeredTeams } = await supabase
       .from('options')
       .select('*', { count: 'exact', head: true })
-      .eq('question_id', id)
+      .eq('question_id', questionId)
 
-    // 自分の投票状況
+    let myTeamAnswered = false
     let myVoted = false
+    let totalVotes = 0
+    let totalMembers = 0
+
     if (memberId) {
-      const { data: vote } = await supabase
+      // 自分のチームが回答済みか確認
+      const { data: member } = await supabase
+        .from('members')
+        .select('team_id')
+        .eq('id', memberId)
+        .single()
+
+      if (member) {
+        const { data: teamOption } = await supabase
+          .from('options')
+          .select('*')
+          .eq('question_id', questionId)
+          .eq('team_id', (member as any).team_id)
+          .single()
+
+        myTeamAnswered = !!teamOption
+      }
+
+      // 自分が投票済みか確認
+      const { data: myVote } = await supabase
         .from('votes')
-        .select('id')
-        .eq('question_id', id)
+        .select('*')
+        .eq('question_id', questionId)
         .eq('member_id', memberId)
         .single()
 
-      myVoted = !!vote
+      myVoted = !!myVote
     }
 
-    // 総メンバー数と投票数
-    const { count: totalMembers } = await supabase
+    // 投票数を取得
+    const { count: voteCount } = await supabase
+      .from('votes')
+      .select('*', { count: 'exact', head: true })
+      .eq('question_id', questionId)
+
+    totalVotes = voteCount || 0
+
+    // 総メンバー数を取得
+    const { count: memberCount } = await supabase
       .from('members')
       .select('*', { count: 'exact', head: true })
 
-    const { count: totalVotes } = await supabase
-      .from('votes')
-      .select('*', { count: 'exact', head: true })
-      .eq('question_id', id)
+    totalMembers = memberCount || 0
 
-    return NextResponse.json({
-      ...question,
+    const response = {
+      ...(question as any),
       my_team_answered: myTeamAnswered,
       total_teams: totalTeams || 0,
       answered_teams: answeredTeams || 0,
       my_voted: myVoted,
-      total_members: totalMembers || 0,
-      total_votes: totalVotes || 0,
-    })
+      total_votes: totalVotes,
+      total_members: totalMembers
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
