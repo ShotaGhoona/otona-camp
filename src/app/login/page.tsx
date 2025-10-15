@@ -68,7 +68,7 @@ export default function LoginPage() {
                 className="w-full"
                 disabled={loading || !name.trim()}
               >
-                {loading ? '処理中...' : 'ログイン >>'}
+                {loading ? '処理中...' : 'ログイン &gt;&gt;'}
               </Button>
             </form>
             

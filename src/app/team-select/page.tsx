@@ -62,7 +62,7 @@ export default function TeamSelectPage() {
       const member = await response.json()
       
       // セッションに保存（後でSupabaseと連携時に使用）
-      setSession(member.id, member.team_id)
+      setSession(member.id, member.team_id, member.name)
       
       // セッション情報を更新するため、リロード
       window.location.href = '/questions'

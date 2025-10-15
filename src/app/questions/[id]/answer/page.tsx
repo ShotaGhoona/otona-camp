@@ -287,7 +287,7 @@ export default function AnswerPage({ params }: { params: Promise<{ id: string }>
                   className="w-full"
                   disabled={submitting || (!answer.trim() && !imageUrl.trim())}
                 >
-                  {submitting ? '送信中...' : '回答を送信 >>'}
+                  {submitting ? '送信中...' : '回答を送信 &gt;&gt;'}
                 </Button>
 
                 <p className="text-sm text-gray-500 text-center mt-4">

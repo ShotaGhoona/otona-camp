@@ -226,7 +226,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
             className="w-full"
             size="lg"
           >
-            次の問題へ >>
+            次の問題へ &gt;&gt;
           </Button>
         </div>
       </div>
