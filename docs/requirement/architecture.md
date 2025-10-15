@@ -17,10 +17,13 @@
 - **React 18+**
 - **TypeScript**
 - **Tailwind CSS**
+- **NextAuth.js** (認証)
+- **shadcn/ui** (UIコンポーネント)
 
 ### バックエンド
 - **Next.js API Routes** (App Router)
 - **Supabase** (PostgreSQL + Realtime)
+- **NextAuth.js** (セッション管理)
 
 ### デプロイ
 - **Vercel**
@@ -116,12 +119,13 @@ adult-camp/
 │   │           └── route.ts        # GET /api/scoreboard
 │   │
 │   ├── components/                 # Reactコンポーネント
-│   │   ├── ui/                     # 再利用可能なUIコンポーネント
-│   │   │   ├── Button.tsx
-│   │   │   ├── Card.tsx
-│   │   │   ├── Input.tsx
-│   │   │   ├── Spinner.tsx
-│   │   │   └── StepIndicator.tsx
+│   │   ├── ui/                     # 再利用可能なUIコンポーネント（shadcn/ui）
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── input.tsx
+│   │   │   ├── textarea.tsx
+│   │   │   ├── label.tsx
+│   │   │   └── radio-group.tsx
 │   │   │
 │   │   ├── layout/                 # レイアウトコンポーネント
 │   │   │   ├── Header.tsx
@@ -150,6 +154,9 @@ adult-camp/
 │   │       ├── QuestionForm.tsx
 │   │       └── StatusControl.tsx
 │   │
+│   ├── providers/                  # プロバイダーコンポーネント
+│   │   └── SessionProvider.tsx     # NextAuth SessionProvider
+│   │
 │   ├── lib/                        # ユーティリティ・ヘルパー
 │   │   ├── supabase.ts             # Supabaseクライアント
 │   │   ├── session.ts              # セッション管理
@@ -165,10 +172,13 @@ adult-camp/
 │   ├── types/                      # TypeScript型定義
 │   │   ├── database.ts             # DBスキーマ型
 │   │   ├── api.ts                  # APIレスポンス型
-│   │   └── index.ts                # 共通型エクスポート
+│   │   ├── index.ts                # 共通型エクスポート
+│   │   └── next-auth.d.ts          # NextAuth型定義
 │   │
-│   └── contexts/                   # React Context
-│       └── AuthContext.tsx         # 認証コンテキスト
+│   ├── contexts/                   # React Context
+│   │   └── AuthContext.tsx         # 認証コンテキスト
+│   │
+│   └── middleware.ts               # NextAuth認証ミドルウェア
 │
 └── supabase/                       # Supabase関連
     └── migrations/
@@ -184,6 +194,8 @@ adult-camp/
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-here
 ```
 
 ---
@@ -204,7 +216,7 @@ export const supabase = createClient<Database>(
 ```
 
 #### `src/lib/session.ts`
-セッション管理（LocalStorage使用）
+セッション管理（LocalStorage使用、NextAuthと併用）
 
 ```typescript
 export function getMemberId(): string | null {
@@ -217,14 +229,16 @@ export function getTeamId(): string | null {
   return localStorage.getItem('team_id')
 }
 
-export function setSession(memberId: string, teamId: string) {
+export function setSession(memberId: string, teamId: string, name?: string) {
   localStorage.setItem('member_id', memberId)
   localStorage.setItem('team_id', teamId)
+  if (name) localStorage.setItem('member_name', name)
 }
 
 export function clearSession() {
   localStorage.removeItem('member_id')
   localStorage.removeItem('team_id')
+  localStorage.removeItem('member_name')
 }
 ```
 
@@ -316,28 +330,27 @@ export type Database = {
 ```
 
 #### `src/hooks/useAuth.ts`
-認証状態管理
+認証状態管理（NextAuth対応）
 
 ```typescript
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { getMemberId, getTeamId } from '@/lib/session'
 
 export function useAuth() {
-  const [memberId, setMemberId] = useState<string | null>(null)
-  const [teamId, setTeamId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const { data: session, status } = useSession()
+  
+  // セッションから情報を取得、またはローカルストレージから取得（移行期間のため）
+  const memberId = session?.user?.id || getMemberId()
+  const teamId = session?.user?.teamId || getTeamId()
 
-  useEffect(() => {
-    setMemberId(getMemberId())
-    setTeamId(getTeamId())
-    setIsLoading(false)
-  }, [])
-
-  const isAuthenticated = !!memberId && !!teamId
-
-  return { memberId, teamId, isAuthenticated, isLoading }
+  return {
+    memberId,
+    teamId,
+    isAuthenticated: status === 'authenticated' || !!memberId,
+    isLoading: status === 'loading'
+  }
 }
 ```
 
@@ -487,13 +500,19 @@ export async function POST(request: NextRequest) {
 ```
 User Input (名前)
   ↓
-Login Page → POST /api/members
+Login Page → NextAuth signIn()
+  ↓
+NextAuth Credentials Provider
+  ↓
+JWTセッション生成
+  ↓
+Team Select Page へリダイレクト
+  ↓
+チーム選択 → POST /api/members
   ↓
 Supabase (members テーブルに挿入)
   ↓
-Response (member_id, team_id)
-  ↓
-LocalStorage に保存
+LocalStorage に保存（Supabase連携用）
   ↓
 Questions Page へリダイレクト
 ```
@@ -546,9 +565,9 @@ UI 再レンダリング
 
 ## 状態管理戦略
 
-### グローバル状態（Context）
-- ユーザー情報（member_id, team_id）
-- チーム情報（name, color, score）
+### グローバル状態（Context/NextAuth）
+- ユーザー情報（NextAuthセッション）
+- チーム情報（LocalStorageとの連携）
 
 ### ローカル状態（useState）
 - フォーム入力値
@@ -570,17 +589,19 @@ UI 再レンダリング
 ## セキュリティ方針（MVP）
 
 ### やらないこと（時間優先）
-- ❌ 厳密な認証・認可
+- ❌ 厳密な認証・認可（パスワード等）
 - ❌ Row Level Security (RLS)
-- ❌ CSRF対策
 - ❌ Rate Limiting
 - ❌ 入力値の厳密なバリデーション
 
 ### 最低限やること
+- ✅ NextAuth.jsによる基本的な認証
+- ✅ middlewareによる保護されたページのアクセス制御
 - ✅ 自チーム投票不可のチェック（API側）
 - ✅ 重複回答・重複投票のチェック（UNIQUE制約）
 - ✅ 環境変数の.gitignore管理
 - ✅ XSS対策（Reactのデフォルト）
+- ✅ CSRF対策（NextAuth.jsのデフォルト）
 
 ---
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
 import { setSession } from '@/lib/session'
 import { Button } from '@/components/ui/button'
@@ -18,20 +19,16 @@ interface Team {
 
 export default function TeamSelectPage() {
   const router = useRouter()
+  const { data: session } = useSession()
   const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState<string | null>(null)
-  const [userName, setUserName] = useState('')
 
   useEffect(() => {
-    const name = localStorage.getItem('temp_name')
-    if (!name) {
-      router.push('/login')
-      return
+    if (session?.user) {
+      fetchTeams()
     }
-    setUserName(name)
-    fetchTeams()
-  }, [router])
+  }, [session])
 
   const fetchTeams = async () => {
     try {
@@ -46,12 +43,14 @@ export default function TeamSelectPage() {
   }
 
   const handleJoinTeam = async (teamId: string) => {
+    if (!session?.user?.name) return
+    
     setJoining(teamId)
     try {
       const response = await apiClient('/api/members', {
         method: 'POST',
         body: JSON.stringify({
-          name: userName,
+          name: session.user.name,
           team_id: teamId
         })
       })
@@ -62,12 +61,11 @@ export default function TeamSelectPage() {
 
       const member = await response.json()
       
-      // セッションに保存
+      // セッションに保存（後でSupabaseと連携時に使用）
       setSession(member.id, member.team_id)
-      localStorage.removeItem('temp_name')
       
-      // 問題一覧へ
-      router.push('/questions')
+      // セッション情報を更新するため、リロード
+      window.location.href = '/questions'
     } catch (error) {
       alert('チームへの参加に失敗しました')
       setJoining(null)
@@ -93,7 +91,7 @@ export default function TeamSelectPage() {
 
       <div className="p-4 max-w-md mx-auto">
         <p className="text-center mb-6">
-          ようこそ、{userName}さん
+          ようこそ、{session?.user?.name}さん
         </p>
 
         <Card className="mb-6">

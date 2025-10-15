@@ -15,96 +15,101 @@
   - options
   - votes
   - game_state
-- [ ] 環境変数設定（.env.local）
+- [x] 環境変数設定（.env.local）
   - NEXT_PUBLIC_SUPABASE_URL
   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+  - NEXTAUTH_URL
+  - NEXTAUTH_SECRET
 
 ### 2. Next.jsプロジェクト設定
-- [ ] Supabaseクライアントライブラリインストール
-  ```bash
-  npm install @supabase/supabase-js
-  ```
-- [ ] Supabaseクライアント初期化（lib/supabase.ts）
-- [ ] セッション管理ヘルパー作成（lib/session.ts）
-- [ ] API呼び出しヘルパー作成（lib/api.ts）
+- [x] Supabaseクライアントライブラリインストール
+- [x] NextAuth.jsインストール
+- [x] shadcn/uiインストール
+- [x] Supabaseクライアント初期化（lib/supabase.ts）
+- [x] セッション管理ヘルパー作成（lib/session.ts）
+- [x] API呼び出しヘルパー作成（lib/api.ts）
+- [x] NextAuth設定（/api/auth/[...nextauth]）
+- [x] 認証ミドルウェア設定（middleware.ts）
 
 ---
 
 ## Phase 2: API実装（バックエンド）
 
 ### 3. チーム・メンバー関連API
-- [ ] `POST /api/teams` - チーム作成
-- [ ] `GET /api/teams` - チーム一覧取得
-- [ ] `POST /api/members` - メンバー登録（ログイン）
-- [ ] `GET /api/members/me` - 自分の情報取得
+- [x] `POST /api/teams` - チーム作成
+- [x] `GET /api/teams` - チーム一覧取得
+- [x] `POST /api/members` - メンバー登録
+- [x] `GET /api/members/me` - 自分の情報取得
 
 ### 4. 問題管理API
-- [ ] `POST /api/questions` - 問題作成
-- [ ] `GET /api/questions` - 問題一覧取得
-- [ ] `GET /api/questions/:id` - 問題詳細取得
-- [ ] `PATCH /api/questions/:id/status` - ステータス更新
+- [x] `POST /api/questions` - 問題作成
+- [x] `GET /api/questions` - 問題一覧取得
+- [x] `GET /api/questions/:id` - 問題詳細取得
+- [x] `PATCH /api/questions/:id/status` - ステータス更新
 
 ### 5. 回答・投票API
-- [ ] `POST /api/questions/:id/options` - 回答作成
-- [ ] `GET /api/questions/:id/options` - 回答一覧取得
-- [ ] `POST /api/questions/:id/votes` - 投票
-- [ ] `GET /api/questions/:id/results` - 結果取得
+- [x] `POST /api/questions/:id/options` - 回答作成
+- [x] `GET /api/questions/:id/options` - 回答一覧取得
+- [x] `POST /api/questions/:id/votes` - 投票
+- [x] `GET /api/questions/:id/results` - 結果取得
 
 ### 6. スコアボードAPI
-- [ ] `GET /api/scoreboard` - スコアボード取得
+- [x] `GET /api/scoreboard` - スコアボード取得
 
 ---
 
 ## Phase 3: フロントエンド実装
 
 ### 7. 認証・セットアップページ
-- [ ] ログインページ（/login）
+- [x] ログインページ（/login）
   - 名前入力フォーム
-  - セッション保存
-- [ ] チーム選択ページ（/team-select）
+  - NextAuth認証
+- [x] チーム選択ページ（/team-select）
   - チーム一覧表示
   - チーム選択機能
-- [ ] チーム作成ページ（/team-setup）
+- [x] チーム作成ページ（/team-setup）
   - チーム名入力
   - カラー選択
   - チーム作成API呼び出し
+- [x] 共通ヘッダーコンポーネント
+  - ログアウトボタン
 
 ### 8. 問題一覧・スコアボード
-- [ ] 問題一覧ページ（/questions）
+- [x] 問題一覧ページ（/questions）
   - 問題一覧表示
   - ステータス別アイコン表示
   - 自チーム情報とスコア表示
   - Realtime購読（問題ステータス更新）
-- [ ] スコアボードページ（/scoreboard）
+- [x] スコアボードページ（/scoreboard）
   - チーム順位表示
   - プログレスバー
   - Realtime購読（スコア更新）
 
 ### 9. 問題詳細ページ（3フェーズ）
-- [ ] 回答フェーズページ（/questions/:id/answer）
+- [x] 回答フェーズページ（/questions/:id/answer）
   - 問題文表示
   - ステップインジケーター
-  - 回答入力フォーム（テキスト/画像）
+  - 回答入力フォーム（テキスト/画像URL）
   - タイマー表示
   - 他チーム進捗表示
   - Realtime購読（回答数更新）
-- [ ] 投票フェーズページ（/questions/:id/vote）
+- [x] 投票フェーズページ（/questions/:id/vote）
   - 全チームの回答表示
   - 投票ボタン
   - 自チーム投票不可表示
   - 投票済み状態表示
   - Realtime購読（投票数更新）
-- [ ] 結果フェーズページ（/questions/:id/result）
+- [x] 結果フェーズページ（/questions/:id/result）
   - ランキング表示
   - 獲得ポイント表示
   - 次の問題へボタン
 
 ### 10. ゲームマスターページ
-- [ ] ゲームマスターダッシュボード（/gamemaster）
+- [x] ゲームマスターダッシュボード（/gamemaster）
   - 問題一覧表示
   - ステータス管理
   - 次のフェーズへボタン
-- [ ] 問題作成ページ（/gamemaster/questions/new）
+- [x] 問題作成ページ（/gamemaster/questions/new）
   - 問題文入力
   - 回答タイプ選択
   - 制限時間・配点設定
@@ -165,6 +170,8 @@
 - [ ] 環境変数設定
   - NEXT_PUBLIC_SUPABASE_URL
   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+  - NEXTAUTH_URL（本番URL）
+  - NEXTAUTH_SECRET
 - [ ] デプロイ実行
 - [ ] 本番環境で動作確認
 

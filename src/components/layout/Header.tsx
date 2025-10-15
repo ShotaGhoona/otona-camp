@@ -1,7 +1,9 @@
 'use client'
 
 import { useRouter, usePathname } from 'next/navigation'
-import { ArrowLeft, Menu } from 'lucide-react'
+import { useSession, signOut } from 'next-auth/react'
+import { ArrowLeft, Menu, LogOut } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface HeaderProps {
   title?: string
@@ -22,6 +24,7 @@ export function Header({
 }: HeaderProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   const handleBack = () => {
     // パスに基づいて適切な戻り先を決定
@@ -62,6 +65,10 @@ export function Header({
     return 'Adult Camp Game'
   }
 
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' })
+  }
+
   return (
     <div className="sticky top-0 bg-white border-b px-4 py-3 flex items-center justify-between z-10">
       <div className="flex items-center">
@@ -79,7 +86,18 @@ export function Header({
       <h1 className="text-lg font-semibold flex-1 text-center">
         {getTitle()}
       </h1>
-      <div className="w-5" />
+      <div className="flex items-center">
+        {session && pathname !== '/login' && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            title="ログアウト"
+          >
+            <LogOut className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

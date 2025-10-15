@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiClient } from '@/lib/api'
+import { signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,9 +19,18 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      // チーム選択ページへ
-      localStorage.setItem('temp_name', name)
-      router.push('/team-select')
+      // NextAuth.jsでログイン
+      const result = await signIn('credentials', {
+        name: name,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        alert('ログインに失敗しました')
+      } else {
+        // ログイン成功後、チーム選択ページへ
+        router.push('/team-select')
+      }
     } catch (error) {
       alert('エラーが発生しました')
     } finally {

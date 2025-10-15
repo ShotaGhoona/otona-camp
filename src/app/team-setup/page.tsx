@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
 import { setSession } from '@/lib/session'
 import { Button } from '@/components/ui/button'
@@ -20,19 +21,10 @@ const TEAM_COLORS = [
 
 export default function TeamSetupPage() {
   const router = useRouter()
+  const { data: session } = useSession()
   const [teamName, setTeamName] = useState('')
   const [selectedColor, setSelectedColor] = useState(TEAM_COLORS[1].value)
   const [loading, setLoading] = useState(false)
-  const [userName, setUserName] = useState('')
-
-  useEffect(() => {
-    const name = localStorage.getItem('temp_name')
-    if (!name) {
-      router.push('/login')
-      return
-    }
-    setUserName(name)
-  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,7 +51,7 @@ export default function TeamSetupPage() {
       const memberResponse = await apiClient('/api/members', {
         method: 'POST',
         body: JSON.stringify({
-          name: userName,
+          name: session?.user?.name || '',
           team_id: team.id
         })
       })
@@ -70,12 +62,11 @@ export default function TeamSetupPage() {
 
       const member = await memberResponse.json()
       
-      // セッションに保存
-      setSession(member.id, member.team_id)
-      localStorage.removeItem('temp_name')
+      // セッションに保存（後でSupabaseと連携時に使用）
+      setSession(member.id, member.team_id, member.name)
       
-      // 問題一覧へ
-      router.push('/questions')
+      // セッション情報を更新するため、リロード
+      window.location.href = '/questions'
     } catch (error) {
       alert('チームの作成に失敗しました')
     } finally {
