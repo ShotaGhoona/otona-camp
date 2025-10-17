@@ -1,16 +1,15 @@
 /**
  * API呼び出しヘルパー
- * セッション情報を自動的にヘッダーに付与
+ * NextAuthセッション情報を自動的にヘッダーに付与
  */
 
-import { getMemberId, getTeamId } from './session'
+import { getSession } from 'next-auth/react'
 
 export async function apiClient(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  const memberId = getMemberId()
-  const teamId = getTeamId()
+  const session = await getSession()
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -18,11 +17,11 @@ export async function apiClient(
   }
 
   // セッション情報があればヘッダーに追加
-  if (memberId) {
-    headers['Authorization'] = memberId
-  }
-  if (teamId) {
-    headers['X-Team-ID'] = teamId
+  if (session?.user) {
+    headers['Authorization'] = session.user.id
+    if (session.user.teamId) {
+      headers['X-Team-ID'] = session.user.teamId
+    }
   }
 
   return fetch(url, {

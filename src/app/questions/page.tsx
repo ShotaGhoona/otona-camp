@@ -66,18 +66,18 @@ const STATUS_CONFIG = {
 
 export default function QuestionsPage() {
   const router = useRouter()
-  const { memberId, teamId, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { memberId, teamId, isFullyAuthenticated, isLoading: authLoading } = useAuth()
   const [questions, setQuestions] = useState<Question[]>([])
   const [memberInfo, setMemberInfo] = useState<MemberInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (!authLoading && !isFullyAuthenticated) {
       router.push('/login')
-    } else if (isAuthenticated) {
+    } else if (isFullyAuthenticated) {
       fetchData()
     }
-  }, [authLoading, isAuthenticated, router])
+  }, [authLoading, isFullyAuthenticated, router])
 
   const fetchData = async () => {
     try {
@@ -117,7 +117,7 @@ export default function QuestionsPage() {
     router.push('/scoreboard')
   }
 
-  if (!isAuthenticated) return null
+  if (!isFullyAuthenticated) return null
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -194,7 +194,7 @@ export default function QuestionsPage() {
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3 flex-1">
-                          <i className={`fas ${config.icon} ${config.color} text-xl mt-1 ${config.pulse ? 'animate-pulse' : ''}`}></i>
+                          <i className={`fas ${config.icon} ${config.color} text-xl mt-1 ${(config as any).pulse ? 'animate-pulse' : ''}`}></i>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base line-clamp-2">
                               Q{index + 1}: {question.title}

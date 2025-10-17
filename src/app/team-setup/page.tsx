@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
-import { setSession } from '@/lib/session'
+import { signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -46,27 +46,23 @@ export default function TeamSetupPage() {
       }
 
       const team = await teamResponse.json()
-
-      // メンバー登録（自動的にチームに参加）
-      const memberResponse = await apiClient('/api/members', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: session?.user?.name || '',
-          team_id: team.id
-        })
+      
+      // チーム作成後に新しいセッションで再ログイン
+      // NextAuthが自動的にメンバー作成を処理する
+      const result = await signIn('credentials', {
+        name: session?.user?.name || '',
+        teamId: team.id,
+        redirect: false,
       })
 
-      if (!memberResponse.ok) {
-        throw new Error('Failed to join team')
+      if (result?.error) {
+        throw new Error('Failed to create team session')
       }
 
-      const member = await memberResponse.json()
-      
-      // セッションに保存（後でSupabaseと連携時に使用）
-      setSession(member.id, member.team_id, member.name)
-      
-      // セッション情報を更新するため、リロード
-      window.location.href = '/questions'
+      // セッション更新後、問題ページへリダイレクト
+      setTimeout(() => {
+        window.location.href = '/questions'
+      }, 100)
     } catch (error) {
       alert('チームの作成に失敗しました')
     } finally {

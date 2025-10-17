@@ -27,8 +27,10 @@ export default function LoginPage() {
       if (result?.error) {
         alert('ログインに失敗しました')
       } else {
-        // ログイン成功後、チーム選択ページへ
-        router.push('/team-select')
+        // ログイン成功後、セッション更新を待ってリダイレクト
+        setTimeout(() => {
+          window.location.href = '/team-select'
+        }, 100)
       }
     } catch (error) {
       alert('エラーが発生しました')

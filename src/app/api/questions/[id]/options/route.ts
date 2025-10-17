@@ -11,9 +11,16 @@ export async function POST(
     const memberId = request.headers.get('Authorization')
     const teamId = request.headers.get('X-Team-ID')
 
-    if (!memberId || !teamId) {
+    if (!memberId) {
       return NextResponse.json(
         { error: { code: 'UNAUTHORIZED', message: 'Authorization required' } },
+        { status: 401 }
+      )
+    }
+
+    if (!teamId) {
+      return NextResponse.json(
+        { error: { code: 'UNAUTHORIZED', message: 'Team selection required' } },
         { status: 401 }
       )
     }

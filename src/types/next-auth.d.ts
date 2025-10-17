@@ -6,6 +6,9 @@ declare module "next-auth" {
       id: string
       name: string
       teamId: string | null
+      teamName: string | null
+      teamColor: string | null
+      teamScore: number
     }
   }
 
@@ -13,6 +16,9 @@ declare module "next-auth" {
     id: string
     name: string
     teamId: string | null
+    teamName: string | null
+    teamColor: string | null
+    teamScore: number
   }
 }
 
@@ -21,5 +27,8 @@ declare module "next-auth/jwt" {
     id: string
     name: string
     teamId: string | null
+    teamName: string | null
+    teamColor: string | null
+    teamScore: number
   }
 }

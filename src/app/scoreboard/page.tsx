@@ -26,17 +26,17 @@ interface ScoreboardData {
 
 export default function ScoreboardPage() {
   const router = useRouter()
-  const { teamId, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { teamId, isFullyAuthenticated, isLoading: authLoading } = useAuth()
   const [scoreData, setScoreData] = useState<ScoreboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (!authLoading && !isFullyAuthenticated) {
       router.push('/login')
-    } else if (isAuthenticated) {
+    } else if (isFullyAuthenticated) {
       fetchScoreboard()
     }
-  }, [authLoading, isAuthenticated, router])
+  }, [authLoading, isFullyAuthenticated, router])
 
   const fetchScoreboard = async () => {
     try {
@@ -59,7 +59,7 @@ export default function ScoreboardPage() {
     return null;
   };
 
-  if (!isAuthenticated) return null
+  if (!isFullyAuthenticated) return null
 
   return (
     <div className="min-h-screen bg-background pb-20">

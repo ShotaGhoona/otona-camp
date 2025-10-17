@@ -96,8 +96,8 @@ export function FileUpload({ onFileSelect, onFileRemove, selectedFile, disabled 
       <div
         className={`
           relative border-2 border-dashed rounded-lg p-6 transition-colors
-          ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}
+          ${dragActive ? 'border-primary bg-primary/10' : 'border-border'}
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'}
         `}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -115,11 +115,11 @@ export function FileUpload({ onFileSelect, onFileRemove, selectedFile, disabled 
         />
         
         <div className="text-center">
-          <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-          <p className="text-sm text-gray-600 mb-2">
+          <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+          <p className="text-sm text-foreground mb-2">
             {dragActive ? 'ここに画像をドロップ' : '画像をドラッグ&ドロップまたはクリックして選択'}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             PNG, JPG, GIF (最大5MB)
           </p>
         </div>
@@ -127,7 +127,7 @@ export function FileUpload({ onFileSelect, onFileRemove, selectedFile, disabled 
 
       {/* エラー表示 */}
       {error && (
-        <div className="flex items-center gap-2 text-red-600 text-sm">
+        <div className="flex items-center gap-2 text-destructive text-sm">
           <AlertCircle className="w-4 h-4" />
           <span>{error}</span>
         </div>
@@ -139,7 +139,7 @@ export function FileUpload({ onFileSelect, onFileRemove, selectedFile, disabled 
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
                   {previewUrl ? (
                     <img 
                       src={previewUrl} 
@@ -147,12 +147,12 @@ export function FileUpload({ onFileSelect, onFileRemove, selectedFile, disabled 
                       className="w-full h-full object-cover rounded-lg"
                     />
                   ) : (
-                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                    <ImageIcon className="w-5 h-5 text-muted-foreground" />
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{selectedFile.name}</p>
-                  <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
+                  <p className="text-sm font-medium text-foreground">{selectedFile.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
                 </div>
               </div>
               <Button
@@ -160,7 +160,7 @@ export function FileUpload({ onFileSelect, onFileRemove, selectedFile, disabled 
                 size="sm"
                 onClick={handleRemoveFile}
                 disabled={disabled}
-                className="text-red-600 hover:text-red-700"
+                className="text-destructive hover:text-destructive/80"
               >
                 <X className="w-4 h-4" />
               </Button>
