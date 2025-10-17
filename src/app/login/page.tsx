@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Header } from '@/components/layout/Header'
+import { Label } from '@/components/ui/label'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -39,45 +38,62 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header showBack={false} />
-      <div className="flex items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 57px)' }}>
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="text-4xl mb-4">🎮</div>
-            <CardTitle className="text-2xl">チーム対抗ゲーム</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  あなたの名前
-                </label>
-                <Input
-                  type="text"
-                  placeholder="山田太郎"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={loading || !name.trim()}
-              >
-                {loading ? '処理中...' : 'ログイン &gt;&gt;'}
-              </Button>
-            </form>
-            
-            <p className="mt-6 text-center text-sm text-gray-500">
-              ※セキュリティなし<br />
-              名前だけで参加OK
-            </p>
-          </CardContent>
-        </Card>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-8">
+        {/* Logo/Title */}
+        <div className="text-center space-y-2">
+          <div className="inline-block p-4 rounded-full bg-primary/10 mb-4">
+            <i className="fas fa-gamepad text-5xl text-primary"></i>
+          </div>
+          <h1 className="text-4xl font-bold text-foreground">
+            Otona Camp Game
+          </h1>
+          <p className="text-muted-foreground">競争して、投票して、勝利しよう！</p>
+        </div>
+
+        {/* Login Form */}
+        <div className="bg-card rounded-xl p-6 space-y-6 border border-border">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-base font-semibold">
+                あなたの名前
+              </Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="ダイダロス"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSubmit(e);
+                }}
+                className="h-12 text-base"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              onClick={handleSubmit}
+              className="w-full h-12 text-base font-semibold rounded-full"
+              size="lg"
+              disabled={loading || !name.trim()}
+            >
+              {loading ? '処理中...' : 'ログイン'}
+              {!loading && <i className="fas fa-arrow-right ml-2"></i>}
+            </Button>
+          </form>
+
+          <p className="text-sm text-muted-foreground text-center">
+            名前だけで参加OK
+          </p>
+        </div>
+
+        {/* Footer Info */}
+        <div className="text-center text-sm text-muted-foreground">
+          <p>produced by @D.D.</p>
+        </div>
       </div>
     </div>
   )

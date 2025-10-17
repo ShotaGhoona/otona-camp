@@ -8,10 +8,8 @@ import { getTeamId } from '@/lib/session'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { FileUpload } from '@/components/ui/file-upload'
-import { ArrowLeft, Clock, Image as ImageIcon } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
 import { uploadImage } from '@/lib/upload'
 
 interface Question {
@@ -175,169 +173,195 @@ export default function AnswerPage({ params }: { params: Promise<{ id: string }>
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
   }
 
-
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">読み込み中...</div>
-      </div>
-    )
-  }
-
-  if (!question) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">問題が見つかりません</div>
-      </div>
-    )
-  }
-
-  const progress = question.total_teams > 0 
-    ? Math.round((question.answered_teams / question.total_teams) * 100)
-    : 0
+  if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header currentQuestion={1} totalQuestions={10} />
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push('/questions')}
+          >
+            <i className="fas fa-arrow-left"></i>
+          </Button>
+          <h1 className="text-base font-bold">
+            Q{1}/{10}
+          </h1>
+          <div className="w-10"></div>
+        </div>
+      </div>
 
-      <div className="p-4 max-w-2xl mx-auto">
-        {/* ステップインジケーター */}
-        <div className="mb-6">
-          <div className="flex items-center justify-center gap-4 mb-2">
+      <div className="max-w-md mx-auto p-4 space-y-6">
+        {/* Progress Steps */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full" />
-              <span className="text-sm font-medium">回答</span>
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <i className="fas fa-check text-primary-foreground text-sm"></i>
+              </div>
+              <span className="text-sm font-semibold text-primary">回答</span>
             </div>
-            <div className="h-px bg-gray-300 w-8" />
+            <div className="flex-1 h-0.5 bg-border mx-3"></div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-300 rounded-full" />
-              <span className="text-sm text-gray-500">投票</span>
+              <div className="w-8 h-8 rounded-full border-2 border-border flex items-center justify-center">
+                <span className="text-sm text-muted-foreground">2</span>
+              </div>
+              <span className="text-sm text-muted-foreground">投票</span>
             </div>
-            <div className="h-px bg-gray-300 w-8" />
+            <div className="flex-1 h-0.5 bg-border mx-3"></div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-300 rounded-full" />
-              <span className="text-sm text-gray-500">結果</span>
+              <div className="w-8 h-8 rounded-full border-2 border-border flex items-center justify-center">
+                <span className="text-sm text-muted-foreground">3</span>
+              </div>
+              <span className="text-sm text-muted-foreground">結果</span>
             </div>
           </div>
-          <p className="text-center text-sm text-gray-600">Step 1/3</p>
+          <p className="text-xs text-center text-muted-foreground">Step 1/3</p>
         </div>
 
-        {/* 問題文 */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-2">【問題】</h2>
-            <p className="text-lg mb-2">{question.title}</p>
-            {question.description && (
-              <p className="text-sm text-gray-600">{question.description}</p>
-            )}
-            
-            {timeLeft !== null && (
-              <div className="mt-4 flex items-center gap-2 text-red-600">
-                <Clock className="w-4 h-4" />
-                <span className="font-medium">
-                  制限時間: {formatTime(timeLeft)}
-                </span>
-              </div>
-            )}
-          </CardContent>
+        {/* Question Card */}
+        <Card className="p-6 space-y-4 border-l-4 border-l-primary">
+          <h2 className="text-xl font-bold">【問題】</h2>
+          <p className="text-lg">{question?.title}</p>
+          {question?.description && (
+            <p className="text-sm text-muted-foreground">{question.description}</p>
+          )}
+          
+          {timeLeft !== null && (
+            <div className="flex items-center gap-2 text-destructive">
+              <i className="fas fa-clock"></i>
+              <span className="font-medium">
+                制限時間: {formatTime(timeLeft)}
+              </span>
+            </div>
+          )}
         </Card>
 
-        {/* 回答フォーム */}
+        {/* Answer Form or Submitted Answer */}
         {teamOption ? (
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4 text-green-600">
-                ✅ チームの回答:
-              </h3>
+          <Card className="p-6 space-y-4 border-l-4 border-l-chart-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-chart-2 flex items-center justify-center">
+                <i className="fas fa-check text-white"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-chart-2">回答完了</h3>
+                <p className="text-sm text-muted-foreground">
+                  {teamOption.team_name}の回答
+                </p>
+              </div>
+            </div>
+            
+            <div className="p-4 bg-muted/30 rounded-lg">
               {teamOption.content && (
-                <div className="p-4 bg-gray-50 rounded-lg mb-2">
-                  <p className="whitespace-pre-wrap">{teamOption.content}</p>
-                </div>
+                <p className="whitespace-pre-wrap text-center py-2">{teamOption.content}</p>
               )}
               {teamOption.image_url && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">画像URL: {teamOption.image_url}</p>
-                </div>
+                <img
+                  src={teamOption.image_url}
+                  alt="回答画像"
+                  className="w-full rounded-lg"
+                />
               )}
-              <p className="text-sm text-gray-500 mt-4">
-                回答者: {teamOption.team_name}のメンバー
-              </p>
-            </CardContent>
+            </div>
+            
+            <p className="text-sm text-muted-foreground text-center">
+              投票フェーズまでお待ちください
+            </p>
           </Card>
         ) : (
           <form onSubmit={handleSubmit}>
-            <Card className="mb-6">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">チームの回答を入力:</h3>
-                
-                {(question.question_type === 'text' || question.question_type === 'both') && (
-                  <div className="mb-4">
-                    <Textarea
-                      placeholder="回答を入力してください"
-                      value={answer}
-                      onChange={(e) => setAnswer(e.target.value)}
-                      rows={4}
-                      disabled={submitting}
-                      className="w-full"
+            <Card className="p-6 space-y-6">
+              <h3 className="text-lg font-semibold">チームの回答を入力</h3>
+              
+              {(question?.question_type === 'text' || question?.question_type === 'both') && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">テキスト回答</label>
+                  <Textarea
+                    placeholder="回答を入力してください"
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    rows={4}
+                    disabled={submitting}
+                    className="w-full"
+                  />
+                </div>
+              )}
+
+              {(question?.question_type === 'image' || question?.question_type === 'both') && (
+                <>
+                  {question.question_type === 'both' && (
+                    <div className="text-center">
+                      <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                        または
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <i className="fas fa-image"></i>
+                      画像回答
+                    </label>
+                    <FileUpload
+                      onFileSelect={handleFileSelect}
+                      onFileRemove={handleFileRemove}
+                      selectedFile={selectedFile}
+                      disabled={submitting || uploadingImage}
                     />
                   </div>
-                )}
+                </>
+              )}
 
-                {(question.question_type === 'image' || question.question_type === 'both') && (
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-semibold rounded-full"
+                disabled={submitting || uploadingImage || (!answer.trim() && !selectedFile)}
+              >
+                {uploadingImage ? (
                   <>
-                    {question.question_type === 'both' && (
-                      <p className="text-center text-sm text-gray-600 mb-4">または</p>
-                    )}
-                    
-                    {/* ファイルアップロード */}
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <ImageIcon className="w-4 h-4" />
-                        <label className="text-sm font-medium">画像ファイル</label>
-                      </div>
-                      <FileUpload
-                        onFileSelect={handleFileSelect}
-                        onFileRemove={handleFileRemove}
-                        selectedFile={selectedFile}
-                        disabled={submitting || uploadingImage}
-                      />
-                    </div>
-
+                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    画像アップロード中...
+                  </>
+                ) : submitting ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    送信中...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-paper-plane mr-2"></i>
+                    回答を送信
                   </>
                 )}
+              </Button>
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={submitting || uploadingImage || (!answer.trim() && !selectedFile)}
-                >
-                  {uploadingImage ? '画像アップロード中...' : submitting ? '送信中...' : '回答を送信 &gt;&gt;'}
-                </Button>
-
-                <p className="text-sm text-gray-500 text-center mt-4">
-                  ※チームの誰か1人が回答すればOKです
-                </p>
-              </CardContent>
+              <p className="text-sm text-muted-foreground text-center">
+                ※チームの誰か1人が回答すればOKです
+              </p>
             </Card>
           </form>
         )}
 
-        {/* 進捗表示 */}
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-gray-600 mb-2">
-              {teamOption ? '投票フェーズ待機中...' : '他のチームの回答状況:'}
+        {/* Progress */}
+        <Card className="p-4">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground text-center">
+              {teamOption ? '投票フェーズ待機中...' : '他のチームの回答状況'}
             </p>
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+            <div className="w-full bg-muted rounded-full h-2">
               <div
-                className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${progress}%` }}
+                className="bg-primary h-2 rounded-full transition-all duration-500"
+                style={{ width: `${question && question.total_teams > 0 ? Math.round((question.answered_teams / question.total_teams) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-sm text-gray-500 text-right">
-              {question.answered_teams}/{question.total_teams}チーム完了
+            <p className="text-sm text-muted-foreground text-center">
+              {question?.answered_teams || 0}/{question?.total_teams || 0}チーム完了
             </p>
-          </CardContent>
+          </div>
         </Card>
       </div>
     </div>

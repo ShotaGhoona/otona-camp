@@ -1,80 +1,48 @@
-'use client'
+```
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { apiClient } from '@/lib/api'
-import { setSession } from '@/lib/session'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { TeamWithStats } from "@shared/schema";
 
-interface Team {
-  id: string
-  name: string
-  color: string
-  member_count: number
-  score: number
-}
-
-export default function TeamSelectPage() {
-  const router = useRouter()
-  const { data: session } = useSession()
-  const [teams, setTeams] = useState<Team[]>([])
-  const [loading, setLoading] = useState(true)
-  const [joining, setJoining] = useState<string | null>(null)
+export default function TeamSelect() {
+  const [, setLocation] = useLocation();
+  const userName = localStorage.getItem("userName");
 
   useEffect(() => {
-    if (session?.user) {
-      fetchTeams()
+    if (!userName) {
+      setLocation("/login");
     }
-  }, [session])
+  }, [userName, setLocation]);
 
-  const fetchTeams = async () => {
-    try {
-      const response = await apiClient('/api/teams')
-      const data = await response.json()
-      setTeams(data.teams || [])
-    } catch (error) {
-      alert('チーム一覧の取得に失敗しました')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { data: teams, isLoading } = useQuery<{ teams: TeamWithStats[] }>({
+    queryKey: ["/api/teams"],
+    enabled: !!userName,
+  });
 
   const handleJoinTeam = async (teamId: string) => {
-    if (!session?.user?.name) return
-    
-    setJoining(teamId)
+    if (!userName) return;
+
     try {
-      const response = await apiClient('/api/members', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: session.user.name,
-          team_id: teamId
-        })
-      })
+      const response = await fetch("/api/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: userName, teamId }),
+        credentials: "include",
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to join team')
+        throw new Error("Failed to join team");
       }
 
-      const member = await response.json()
-      
-      // セッションに保存（後でSupabaseと連携時に使用）
-      setSession(member.id, member.team_id, member.name)
-      
-      // セッション情報を更新するため、リロード
-      window.location.href = '/questions'
+      setLocation("/questions");
     } catch (error) {
-      alert('チームへの参加に失敗しました')
-      setJoining(null)
+      console.error("Error joining team:", error);
     }
-  }
-
-  const handleCreateTeam = () => {
-    router.push('/team-setup')
-  }
+  };
 
   const teamColors: Record<string, string> = {
     "#FF6B6B": "bg-[#FF6B6B]",
@@ -83,9 +51,9 @@ export default function TeamSelectPage() {
     "#FFE66D": "bg-[#FFE66D]",
     "#A78BFA": "bg-[#A78BFA]",
     "#FB923C": "bg-[#FB923C]",
-  }
+  };
 
-  if (!session?.user?.name) return null
+  if (!userName) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,13 +61,14 @@ export default function TeamSelectPage() {
       <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
           <Button
+            data-testid="button-back"
             variant="ghost"
             size="icon"
-            onClick={() => router.push('/login')}
+            onClick={() => setLocation("/login")}
           >
             <i className="fas fa-arrow-left"></i>
           </Button>
-          <h1 className="text-xl font-bold">チーム選択</h1>
+          <h1 className="text-xl font-heading font-bold">チーム選択</h1>
           <div className="w-10"></div>
         </div>
       </div>
@@ -108,7 +77,7 @@ export default function TeamSelectPage() {
         {/* Welcome Message */}
         <div className="text-center py-4">
           <p className="text-lg">
-            ようこそ、<span className="font-bold text-primary">{session.user.name}</span>さん
+            ようこそ、<span className="font-bold text-primary">{userName}</span>さん
           </p>
         </div>
 
@@ -116,18 +85,19 @@ export default function TeamSelectPage() {
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">既存のチームに参加</h2>
           
-          {loading ? (
+          {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-20 w-full" />
               ))}
             </div>
-          ) : teams.length > 0 ? (
+          ) : teams?.teams && teams.teams.length > 0 ? (
             <div className="space-y-3">
-              {teams.map((team) => (
+              {teams.teams.map((team) => (
                 <Card
                   key={team.id}
-                  className="p-4 border-l-4 hover:shadow-md active:shadow-lg cursor-pointer transition-all"
+                  data-testid={`card-team-${team.id}`}
+                  className="p-4 border-l-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
                   style={{ borderLeftColor: team.color }}
                   onClick={() => handleJoinTeam(team.id)}
                 >
@@ -141,15 +111,11 @@ export default function TeamSelectPage() {
                       <div>
                         <h3 className="font-semibold text-lg">{team.name}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {team.member_count}人
+                          {team.memberCount}人
                         </p>
                       </div>
                     </div>
-                    {joining === team.id ? (
-                      <span className="text-sm text-muted-foreground">参加中...</span>
-                    ) : (
-                      <i className="fas fa-chevron-right text-muted-foreground"></i>
-                    )}
+                    <i className="fas fa-chevron-right text-muted-foreground"></i>
                   </div>
                 </Card>
               ))}
@@ -176,16 +142,18 @@ export default function TeamSelectPage() {
 
         {/* Create New Team */}
         <Button
-          onClick={handleCreateTeam}
+          data-testid="button-create-team"
+          onClick={() => setLocation("/team-setup")}
           className="w-full h-12 text-base font-semibold rounded-full"
           variant="outline"
           size="lg"
-          disabled={joining !== null}
         >
           <i className="fas fa-plus mr-2"></i>
           新しいチームを作る
         </Button>
       </div>
     </div>
-  )
+  );
 }
+
+```

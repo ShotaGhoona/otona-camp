@@ -1,136 +1,53 @@
-'use client'
+今からあなたにはスタイルの修正を行なってもらいます
+PoC開発の時に使ったデザインがすごくいいのでその時はreactで作成しましたが、、そちらを渡すのでそのデザインに合わせて下さい
 
-import { useEffect, useState, use } from 'react'
-import { useRouter } from 'next/navigation'
-import { apiClient } from '@/lib/api'
-import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+あくまでデザインんの修正です
+機能面は絶対に損なわないように注意して行いなさい
 
-interface Question {
-  id: string
-  title: string
-  description: string | null
-  question_type: string
-  points: number
-  status: string
-  my_voted: boolean
-  total_votes: number
-  total_members: number
-}
 
-interface Option {
-  id: string
-  team_id: string
-  team_name: string
-  team_color: string
-  content: string | null
-  image_url: string | null
-  is_my_team: boolean
-  vote_count?: number
-}
+```tsx
+import { useLocation, useRoute } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import type { QuestionWithDetails, OptionWithDetails, VoteWithDetails } from "@shared/schema";
 
-interface VoteInfo {
-  voted: boolean
-  vote?: {
-    id: string
-    option_id: string
-    option_content: string
-    team_name: string
-  }
-}
+export default function QuestionVote() {
+  const [, params] = useRoute("/questions/:id/vote");
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const memberId = localStorage.getItem("memberId");
 
-export default function VotePage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
-  const questionId = use(params).id
-  const { memberId, isAuthenticated, isLoading: authLoading } = useAuth()
-  const [question, setQuestion] = useState<Question | null>(null)
-  const [options, setOptions] = useState<Option[]>([])
-  const [voteInfo, setVoteInfo] = useState<VoteInfo | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [voting, setVoting] = useState<string | null>(null)
+  const { data: question } = useQuery<QuestionWithDetails>({
+    queryKey: ["/api/questions", params?.id],
+    enabled: !!params?.id && !!memberId,
+  });
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login')
-    } else if (isAuthenticated) {
-      fetchData()
-    }
-  }, [authLoading, isAuthenticated, router, questionId])
+  const { data: optionsData } = useQuery<{ options: OptionWithDetails[] }>({
+    queryKey: ["/api/questions", params?.id, "options"],
+    enabled: !!params?.id && !!memberId,
+    refetchInterval: 3000,
+  });
 
-  const fetchData = async () => {
-    try {
-      // 問題詳細取得
-      const questionRes = await apiClient(`/api/questions/${questionId}`)
-      if (!questionRes.ok) {
-        throw new Error('Failed to fetch question')
-      }
-      const questionData = await questionRes.json()
-      setQuestion(questionData)
-
-      // ステータスチェック
-      if (questionData.status !== 'voting') {
-        router.push(`/questions/${questionId}/${questionData.status === 'active' ? 'answer' : 'result'}`)
-        return
-      }
-
-      // 回答一覧取得
-      const optionsRes = await apiClient(`/api/questions/${questionId}/options`)
-      if (optionsRes.ok) {
-        const optionsData = await optionsRes.json()
-        setOptions(optionsData.options || [])
-      }
-
-      // 投票状態確認
-      if (questionData.my_voted) {
-        // APIがあればここで投票詳細を取得
-        setVoteInfo({ voted: true })
-      } else {
-        setVoteInfo({ voted: false })
-      }
-    } catch (error) {
-      console.error('Failed to fetch data:', error)
-      alert('データの取得に失敗しました')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { data: myVoteData } = useQuery<VoteWithDetails | { voted: false }>({
+    queryKey: ["/api/questions", params?.id, "votes", "me"],
+    enabled: !!params?.id && !!memberId,
+    refetchInterval: 3000,
+  });
 
   const handleVote = async (optionId: string) => {
-    if (voteInfo?.voted) {
-      alert('既に投票済みです')
-      return
-    }
+    // Will be implemented in backend integration
+    toast({
+      title: "投票完了",
+      description: "投票しました！",
+    });
+  };
 
-    const option = options.find(o => o.id === optionId)
-    if (option?.is_my_team) {
-      alert('自分のチームには投票できません')
-      return
-    }
+  const myVoted = myVoteData && 'voted' in myVoteData ? myVoteData.voted : false;
 
-    setVoting(optionId)
-    try {
-      const response = await apiClient(`/api/questions/${questionId}/votes`, {
-        method: 'POST',
-        body: JSON.stringify({ option_id: optionId })
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error?.message || 'Failed to vote')
-      }
-
-      alert('投票しました！')
-      await fetchData() // 再取得
-    } catch (error: any) {
-      alert(error.message || '投票に失敗しました')
-    } finally {
-      setVoting(null)
-    }
-  }
-
-  if (!isAuthenticated) return null
+  if (!question) return null;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -138,13 +55,14 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
       <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
           <Button
+            data-testid="button-back"
             variant="ghost"
             size="icon"
-            onClick={() => router.push('/questions')}
+            onClick={() => setLocation("/questions")}
           >
             <i className="fas fa-arrow-left"></i>
           </Button>
-          <h1 className="text-base font-bold">
+          <h1 className="text-base font-heading font-bold">
             Q{1}/{10}
           </h1>
           <div className="w-10"></div>
@@ -181,12 +99,12 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
         {/* Voting Instructions */}
         <Card className="p-6 space-y-2 border-l-4 border-l-chart-3">
-          <h2 className="text-xl font-bold">【投票してください】</h2>
+          <h2 className="text-xl font-heading font-bold">【投票してください】</h2>
           <p className="text-muted-foreground">どの回答が一番いい？</p>
         </Card>
 
         {/* My Vote Status */}
-        {voteInfo?.voted && (
+        {myVoted && myVoteData && 'vote' in myVoteData && (
           <Card className="p-4 bg-chart-3/10 border-chart-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-chart-3 flex items-center justify-center">
@@ -195,7 +113,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
               <div>
                 <p className="text-sm font-semibold text-chart-3">投票済み</p>
                 <p className="text-sm text-muted-foreground">
-                  {voteInfo.vote?.team_name || '投票しました'}
+                  {myVoteData.vote.teamName} に投票しました
                 </p>
               </div>
             </div>
@@ -204,26 +122,27 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
         {/* Options List */}
         <div className="space-y-4">
-          {options.map((option) => (
+          {optionsData?.options.map((option) => (
             <Card
               key={option.id}
+              data-testid={`card-option-${option.id}`}
               className={`
                 p-6 space-y-4 border-t-4 transition-all
-                ${!option.is_my_team && !voteInfo?.voted ? 'hover:shadow-md active:shadow-lg cursor-pointer' : ''}
+                ${!option.isMyTeam && !myVoted ? 'hover-elevate active-elevate-2' : ''}
               `}
-              style={{ borderTopColor: option.team_color }}
+              style={{ borderTopColor: option.teamColor }}
             >
               {/* Team Name */}
               <div className="flex items-center gap-2">
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: option.team_color }}
+                  style={{ backgroundColor: option.teamColor }}
                 >
                   <i className="fas fa-users text-white text-sm"></i>
                 </div>
                 <h3 className="font-semibold text-lg">
-                  {option.team_name}
-                  {option.is_my_team && (
+                  {option.teamName}
+                  {option.isMyTeam && (
                     <Badge variant="secondary" className="ml-2">自分</Badge>
                   )}
                 </h3>
@@ -231,10 +150,10 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
               {/* Answer Content */}
               <div className="p-4 bg-muted/30 rounded-lg">
-                {option.image_url ? (
+                {option.imageUrl ? (
                   <img
-                    src={option.image_url}
-                    alt={`${option.team_name}の回答`}
+                    src={option.imageUrl}
+                    alt={`${option.teamName}の回答`}
                     className="w-full rounded-lg"
                   />
                 ) : (
@@ -245,7 +164,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
               </div>
 
               {/* Vote Button */}
-              {option.is_my_team ? (
+              {option.isMyTeam ? (
                 <Button
                   disabled
                   className="w-full"
@@ -254,7 +173,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
                   <i className="fas fa-ban mr-2"></i>
                   投票不可（自分のチーム）
                 </Button>
-              ) : voteInfo?.voted ? (
+              ) : myVoted ? (
                 <Button
                   disabled
                   className="w-full"
@@ -264,28 +183,27 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
                 </Button>
               ) : (
                 <Button
+                  data-testid={`button-vote-${option.id}`}
                   onClick={() => handleVote(option.id)}
-                  disabled={voting !== null}
                   className="w-full h-12 text-base font-semibold rounded-full"
                 >
-                  {voting === option.id ? '投票中...' : (
-                    <>
-                      <i className="fas fa-check-to-slot mr-2"></i>
-                      投票する
-                    </>
-                  )}
+                  <i className="fas fa-check-to-slot mr-2"></i>
+                  投票する
                 </Button>
               )}
             </Card>
           ))}
         </div>
 
-        {!voteInfo?.voted && (
+        {!myVoted && (
           <p className="text-sm text-muted-foreground text-center py-4">
             ※ 自分のチームには投票できません
           </p>
         )}
       </div>
     </div>
-  )
+  );
 }
+
+
+```

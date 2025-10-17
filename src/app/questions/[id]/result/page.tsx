@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Trophy, Medal, Award, Image as ImageIcon } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 interface Question {
   id: string
@@ -76,159 +75,183 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     }
   }
 
-  const getRankIcon = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return <Trophy className="w-6 h-6 text-yellow-500" />
-      case 2:
-        return <Medal className="w-6 h-6 text-gray-400" />
-      case 3:
-        return <Award className="w-6 h-6 text-orange-600" />
-      default:
-        return null
-    }
-  }
-
-  const getRankEmoji = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return '🥇'
-      case 2:
-        return '🥈'
-      case 3:
-        return '🥉'
-      default:
-        return null
-    }
-  }
-
+  const getRankBadge = (rank: number) => {
+    if (rank === 1) return { emoji: "🥇", color: "bg-chart-4 text-white" };
+    if (rank === 2) return { emoji: "🥈", color: "bg-muted text-foreground" };
+    if (rank === 3) return { emoji: "🥉", color: "bg-chart-5 text-white" };
+    return null;
+  };
 
   const handleNextQuestion = () => {
     router.push('/questions')
   }
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">読み込み中...</div>
-      </div>
-    )
-  }
-
-  if (!resultsData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">結果が見つかりません</div>
-      </div>
-    )
-  }
+  if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header currentQuestion={1} totalQuestions={10} />
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push('/questions')}
+          >
+            <i className="fas fa-arrow-left"></i>
+          </Button>
+          <h1 className="text-base font-bold">
+            Q{1}/{10}
+          </h1>
+          <div className="w-10"></div>
+        </div>
+      </div>
 
-      <div className="p-4 max-w-2xl mx-auto">
-        {/* ステップインジケーター */}
-        <div className="mb-6">
-          <div className="flex items-center justify-center gap-4 mb-2">
+      <div className="max-w-md mx-auto p-4 space-y-6">
+        {/* Progress Steps */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-300 rounded-full" />
-              <span className="text-sm text-gray-500">回答</span>
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <i className="fas fa-check text-muted-foreground text-sm"></i>
+              </div>
+              <span className="text-sm text-muted-foreground">回答</span>
             </div>
-            <div className="h-px bg-gray-300 w-8" />
+            <div className="flex-1 h-0.5 bg-primary mx-3"></div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-300 rounded-full" />
-              <span className="text-sm text-gray-500">投票</span>
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <i className="fas fa-check text-muted-foreground text-sm"></i>
+              </div>
+              <span className="text-sm text-muted-foreground">投票</span>
             </div>
-            <div className="h-px bg-gray-300 w-8" />
+            <div className="flex-1 h-0.5 bg-primary mx-3"></div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full" />
-              <span className="text-sm font-medium">結果</span>
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <i className="fas fa-check text-primary-foreground text-sm"></i>
+              </div>
+              <span className="text-sm font-semibold text-primary">結果</span>
             </div>
           </div>
-          <p className="text-center text-sm text-gray-600">Step 3/3</p>
+          <p className="text-xs text-center text-muted-foreground">Step 3/3</p>
         </div>
 
-        {/* 結果発表ヘッダー */}
-        <Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50">
-          <CardContent className="p-6 text-center">
-            <div className="text-3xl mb-2">🏆</div>
-            <h2 className="text-2xl font-bold text-gray-800">結果発表！</h2>
-            <p className="text-gray-600 mt-2">
-              総投票数: {resultsData.total_votes}票
+        {/* Results Header */}
+        <Card className="p-6 text-center bg-gradient-to-br from-chart-4/10 to-transparent">
+          <div className="space-y-2">
+            <i className="fas fa-trophy text-4xl text-chart-4"></i>
+            <h2 className="text-2xl font-bold">結果発表！</h2>
+            <p className="text-muted-foreground">
+              総投票数: {resultsData?.total_votes || 0}票
             </p>
-          </CardContent>
+          </div>
         </Card>
 
-        {/* ランキング */}
+        {/* Rankings */}
         <div className="space-y-4">
-          {resultsData.results.map((result) => (
-            <Card 
-              key={result.option_id}
-              className={result.rank === 1 ? 'border-yellow-400 shadow-lg' : ''}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex flex-col items-center">
-                    <span className="text-2xl mb-1">
-                      {getRankEmoji(result.rank) || `${result.rank}位`}
-                    </span>
-                    <span className="text-xl font-bold">{result.vote_count}票</span>
-                  </div>
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: result.team_color || '#888' }}
-                      />
-                      <h3 className="font-semibold">{result.team_name}</h3>
-                    </div>
-                    
-                    {result.content && (
-                      <div className="mb-2 p-3 bg-gray-50 rounded-lg">
-                        <p className="whitespace-pre-wrap">{result.content}</p>
-                      </div>
-                    )}
-                    
-                    {result.image_url && (
-                      <div className="mb-2 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <ImageIcon className="w-4 h-4 text-gray-500" />
-                          <a 
-                            href={result.image_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-sm"
-                          >
-                            画像を表示
-                          </a>
+          {loading ? (
+            <>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-32 bg-muted/30 rounded-xl animate-pulse"></div>
+              ))}
+            </>
+          ) : resultsData?.results && resultsData.results.length > 0 ? (
+            <>
+              {resultsData.results.map((result) => {
+                const badge = getRankBadge(result.rank);
+                
+                return (
+                  <Card
+                    key={result.option_id}
+                    className={`
+                      p-6 space-y-4 border-l-4 transition-all
+                      ${result.rank === 1 ? 'bg-gradient-to-r from-chart-4/10 to-transparent ring-2 ring-chart-4/20' : ''}
+                    `}
+                    style={{ borderLeftColor: result.team_color }}
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Rank and Votes */}
+                      <div className="flex flex-col items-center gap-2">
+                        {badge ? (
+                          <Badge className={`${badge.color} text-2xl px-3 py-2`}>
+                            {badge.emoji}
+                          </Badge>
+                        ) : (
+                          <div className="text-2xl font-bold text-muted-foreground">
+                            {result.rank}
+                          </div>
+                        )}
+                        <div className="text-center">
+                          <div className="text-xl font-bold text-primary">{result.vote_count}</div>
+                          <div className="text-xs text-muted-foreground">票</div>
                         </div>
                       </div>
-                    )}
-                    
-                    {result.points_earned > 0 && (
-                      <div className="mt-2 inline-flex items-center gap-1 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                        +{result.points_earned}pt 獲得！
+
+                      {/* Team Info and Content */}
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: result.team_color }}
+                          >
+                            <i className="fas fa-users text-white text-sm"></i>
+                          </div>
+                          <h3 className="font-semibold text-lg">{result.team_name}</h3>
+                        </div>
+
+                        {/* Answer Content */}
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          {result.image_url ? (
+                            <img
+                              src={result.image_url}
+                              alt={`${result.team_name}の回答`}
+                              className="w-full rounded-lg"
+                            />
+                          ) : result.content ? (
+                            <p className="text-lg font-medium text-center py-2">
+                              {result.content}
+                            </p>
+                          ) : (
+                            <p className="text-center text-muted-foreground py-2">
+                              回答なし
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Points Earned */}
+                        {result.points_earned > 0 && (
+                          <div className="flex items-center justify-center">
+                            <Badge className="bg-chart-2 text-white text-sm px-3 py-1">
+                              <i className="fas fa-star mr-1"></i>
+                              +{result.points_earned}pt 獲得！
+                            </Badge>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
+                    </div>
+                  </Card>
+                );
+              })}
+            </>
+          ) : (
+            <Card className="p-12 text-center">
+              <i className="fas fa-trophy text-5xl text-muted-foreground mb-4"></i>
+              <p className="text-lg font-semibold mb-2">結果がありません</p>
+              <p className="text-sm text-muted-foreground">
+                結果の集計中です
+              </p>
             </Card>
-          ))}
+          )}
         </div>
 
-        {/* 次の問題へボタン */}
-        <div className="mt-8">
-          <Button 
-            onClick={handleNextQuestion}
-            className="w-full"
-            size="lg"
-          >
-            次の問題へ &gt;&gt;
-          </Button>
-        </div>
+        {/* Next Question Button */}
+        <Button
+          onClick={handleNextQuestion}
+          className="w-full h-12 text-base font-semibold rounded-full"
+          size="lg"
+        >
+          <i className="fas fa-arrow-right mr-2"></i>
+          次の問題へ
+        </Button>
       </div>
     </div>
   )

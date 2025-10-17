@@ -1,40 +1,12 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { apiClient } from '@/lib/api'
-import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Badge } from '@/components/ui/badge'
-
-interface Question {
-  id: string
-  title: string
-  description: string | null
-  question_type: string
-  time_limit: number | null
-  points: number
-  status: 'draft' | 'active' | 'voting' | 'finished'
-  created_at: string
-  started_at: string | null
-  answeredTeams?: number
-  totalTeams?: number
-}
-
-interface TeamInfo {
-  id: string
-  name: string
-  color: string
-  score: number
-}
-
-interface MemberInfo {
-  id: string
-  name: string
-  team: TeamInfo
-}
+```tsx
+import { useEffect } from "react";
+import { useLocation, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import type { QuestionWithDetails, Member } from "@shared/schema";
 
 const STATUS_CONFIG = {
   draft: {
@@ -64,60 +36,40 @@ const STATUS_CONFIG = {
   },
 };
 
-export default function QuestionsPage() {
-  const router = useRouter()
-  const { memberId, teamId, isAuthenticated, isLoading: authLoading } = useAuth()
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [memberInfo, setMemberInfo] = useState<MemberInfo | null>(null)
-  const [loading, setLoading] = useState(true)
+export default function Questions() {
+  const [location, setLocation] = useLocation();
+  const memberId = localStorage.getItem("memberId");
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login')
-    } else if (isAuthenticated) {
-      fetchData()
+    if (!memberId) {
+      setLocation("/login");
     }
-  }, [authLoading, isAuthenticated, router])
+  }, [memberId, setLocation]);
 
-  const fetchData = async () => {
-    try {
-      // メンバー情報取得
-      const memberRes = await apiClient('/api/members/me')
-      if (memberRes.ok) {
-        const memberData = await memberRes.json()
-        setMemberInfo(memberData)
-      }
+  const { data: member } = useQuery<Member>({
+    queryKey: ["/api/members/me"],
+    enabled: !!memberId,
+  });
 
-      // 問題一覧取得
-      const questionsRes = await apiClient('/api/questions')
-      if (questionsRes.ok) {
-        const questionsData = await questionsRes.json()
-        setQuestions(questionsData.questions || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { data: questions, isLoading } = useQuery<{ questions: QuestionWithDetails[] }>({
+    queryKey: ["/api/questions"],
+    enabled: !!memberId,
+    refetchInterval: 5000, // Poll every 5 seconds for real-time updates
+  });
 
   const handleQuestionClick = (questionId: string, status: string) => {
     if (status === 'draft') return;
     
     if (status === 'active') {
-      router.push(`/questions/${questionId}/answer`);
+      setLocation(`/questions/${questionId}/answer`);
     } else if (status === 'voting') {
-      router.push(`/questions/${questionId}/vote`);
+      setLocation(`/questions/${questionId}/vote`);
     } else if (status === 'finished') {
-      router.push(`/questions/${questionId}/result`);
+      setLocation(`/questions/${questionId}/results`);
     }
-  }
+  };
 
-  const handleScoreboard = () => {
-    router.push('/scoreboard')
-  }
-
-  if (!isAuthenticated) return null
+  if (!memberId) return null;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -127,7 +79,7 @@ export default function QuestionsPage() {
           <Button variant="ghost" size="icon">
             <i className="fas fa-bars"></i>
           </Button>
-          <h1 className="text-xl font-bold">問題一覧</h1>
+          <h1 className="text-xl font-heading font-bold">問題一覧</h1>
           <Button variant="ghost" size="icon">
             <i className="fas fa-user-circle"></i>
           </Button>
@@ -136,26 +88,26 @@ export default function QuestionsPage() {
 
       <div className="max-w-md mx-auto p-4 space-y-6">
         {/* Team Info */}
-        {memberInfo?.team && (
-          <Card className="p-4 border-l-4" style={{ borderLeftColor: memberInfo.team.color }}>
+        {member?.team && (
+          <Card className="p-4 border-l-4" style={{ borderLeftColor: member.team.color }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: memberInfo.team.color }}
+                  style={{ backgroundColor: member.team.color }}
                 >
                   <i className="fas fa-users text-white"></i>
                 </div>
                 <div>
-                  <h2 className="font-semibold text-lg">{memberInfo.team.name}</h2>
+                  <h2 className="font-semibold text-lg">{member.team.name}</h2>
                   <p className="text-sm text-muted-foreground">
                     あなたのチーム
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-primary">
-                  {memberInfo.team.score}
+                <div className="text-2xl font-heading font-bold text-primary">
+                  {member.team.score}
                 </div>
                 <p className="text-xs text-muted-foreground">ポイント</p>
               </div>
@@ -165,23 +117,24 @@ export default function QuestionsPage() {
 
         {/* Questions List */}
         <div className="space-y-3">
-          {loading ? (
+          {isLoading ? (
             <>
               {[1, 2, 3, 4].map((i) => (
                 <Skeleton key={i} className="h-24 w-full" />
               ))}
             </>
-          ) : questions.length > 0 ? (
+          ) : questions?.questions && questions.questions.length > 0 ? (
             <>
-              {questions.map((question, index) => {
+              {questions.questions.map((question, index) => {
                 const config = STATUS_CONFIG[question.status as keyof typeof STATUS_CONFIG];
                 
                 return (
                   <Card
                     key={question.id}
+                    data-testid={`card-question-${question.id}`}
                     className={`
                       p-4 border-l-4 transition-all
-                      ${!config.disabled ? 'hover:shadow-md active:shadow-lg cursor-pointer' : 'opacity-60 cursor-not-allowed'}
+                      ${!config.disabled ? 'hover-elevate active-elevate-2 cursor-pointer' : 'opacity-60 cursor-not-allowed'}
                     `}
                     style={{
                       borderLeftColor: config.disabled ? 'var(--muted)' : 
@@ -209,12 +162,12 @@ export default function QuestionsPage() {
                         <span className={config.color}>
                           {config.label}
                         </span>
-                        {question.time_limit && question.status === 'active' && (
+                        {question.timeLimit && question.status === 'active' && (
                           <>
                             <span className="text-muted-foreground">•</span>
                             <span className="text-muted-foreground">
                               <i className="fas fa-clock mr-1"></i>
-                              {Math.floor(question.time_limit / 60)}分
+                              {Math.floor(question.timeLimit / 60)}分
                             </span>
                           </>
                         )}
@@ -245,7 +198,8 @@ export default function QuestionsPage() {
 
         {/* Scoreboard Button */}
         <Button
-          onClick={handleScoreboard}
+          data-testid="button-scoreboard"
+          onClick={() => setLocation("/scoreboard")}
           variant="outline"
           className="w-full h-12 text-base font-semibold rounded-full"
         >
@@ -254,5 +208,8 @@ export default function QuestionsPage() {
         </Button>
       </div>
     </div>
-  )
+  );
 }
+
+
+```
