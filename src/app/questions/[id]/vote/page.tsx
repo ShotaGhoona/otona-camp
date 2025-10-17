@@ -59,6 +59,15 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     }
   }, [authLoading, isAuthenticated, router, questionId])
 
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+  }
+
   const fetchData = async () => {
     try {
       // 問題詳細取得
@@ -79,7 +88,13 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
       const optionsRes = await apiClient(`/api/questions/${questionId}/options`)
       if (optionsRes.ok) {
         const optionsData = await optionsRes.json()
-        setOptions(optionsData.options || [])
+        // チーム名を匿名化し、ランダムに並び替え
+        const anonymizedOptions = (optionsData.options || []).map((option: Option, index: number) => ({
+          ...option,
+          team_name: `チーム ${String.fromCharCode(65 + index)}`, // A, B, C, D...
+          original_team_name: option.team_name // 元のチーム名を保持（内部用）
+        }))
+        setOptions(shuffleArray(anonymizedOptions))
       }
 
       // 投票状態確認
@@ -183,6 +198,9 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
         <Card className="p-6 space-y-2 border-l-4 border-l-chart-3">
           <h2 className="text-xl font-bold">【投票してください】</h2>
           <p className="text-muted-foreground">どの回答が一番いい？</p>
+          <p className="text-xs text-muted-foreground">
+            ※ チーム名は匿名化されています
+          </p>
         </Card>
 
         {/* My Vote Status */}
@@ -195,7 +213,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
               <div>
                 <p className="text-sm font-semibold text-chart-3">投票済み</p>
                 <p className="text-sm text-muted-foreground">
-                  {voteInfo.vote?.team_name || '投票しました'}
+                  投票が完了しました
                 </p>
               </div>
             </div>
@@ -204,22 +222,21 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
         {/* Options List */}
         <div className="space-y-4">
-          {options.map((option) => (
+          {options.map((option, index) => (
             <Card
               key={option.id}
               className={`
                 p-6 space-y-4 border-t-4 transition-all
                 ${!option.is_my_team && !voteInfo?.voted ? 'hover:shadow-md active:shadow-lg cursor-pointer' : ''}
               `}
-              style={{ borderTopColor: option.team_color }}
+              style={{ borderTopColor: 'var(--muted)' }}
             >
-              {/* Team Name */}
+              {/* Anonymous Team Name */}
               <div className="flex items-center gap-2">
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: option.team_color }}
-                >
-                  <i className="fas fa-users text-white text-sm"></i>
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <span className="text-sm font-bold text-muted-foreground">
+                    {String.fromCharCode(65 + index)}
+                  </span>
                 </div>
                 <h3 className="font-semibold text-lg">
                   {option.team_name}
@@ -282,7 +299,8 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
         {!voteInfo?.voted && (
           <p className="text-sm text-muted-foreground text-center py-4">
-            ※ 自分のチームには投票できません
+            ※ 自分のチームには投票できません<br />
+            ※ チーム名は匿名化されています
           </p>
         )}
       </div>
