@@ -213,30 +213,27 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
                     style={{ backgroundColor: option.team_color || '#888' }}
                   />
                   <div className="flex-1">
-                    <h3 className="font-semibold mb-2">
+                    <h3 className="font-semibold mb-3">
                       {option.team_name}
                       {option.is_my_team && <span className="text-gray-500 ml-2">（自分）</span>}
                     </h3>
                     
-                    {option.content && (
-                      <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-                        <p className="whitespace-pre-wrap">{option.content}</p>
+                    {/* 画像を先に表示 */}
+                    {option.image_url && (
+                      <div className="mb-3">
+                        <img 
+                          src={option.image_url} 
+                          alt={`${option.team_name}の回答画像`}
+                          className="w-full max-w-sm mx-auto rounded-lg shadow-sm border"
+                          style={{ maxHeight: '300px', objectFit: 'contain' }}
+                        />
                       </div>
                     )}
                     
-                    {option.image_url && (
+                    {/* テキストを画像の後に表示 */}
+                    {option.content && (
                       <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <ImageIcon className="w-4 h-4 text-gray-500" />
-                          <a 
-                            href={option.image_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-sm"
-                          >
-                            画像を表示
-                          </a>
-                        </div>
+                        <p className="whitespace-pre-wrap">{option.content}</p>
                       </div>
                     )}
 

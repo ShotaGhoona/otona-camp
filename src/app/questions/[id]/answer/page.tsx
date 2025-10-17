@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
+import { FileUpload } from '@/components/ui/file-upload'
 import { ArrowLeft, Clock, Image as ImageIcon } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
+import { uploadImage } from '@/lib/upload'
 
 interface Question {
   id: string
@@ -45,7 +47,8 @@ export default function AnswerPage({ params }: { params: Promise<{ id: string }>
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [answer, setAnswer] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
 
   useEffect(() => {
@@ -100,7 +103,6 @@ export default function AnswerPage({ params }: { params: Promise<{ id: string }>
         if (myOption) {
           setTeamOption(myOption)
           if (myOption.content) setAnswer(myOption.content)
-          if (myOption.image_url) setImageUrl(myOption.image_url)
         }
       }
     } catch (error) {
@@ -111,19 +113,42 @@ export default function AnswerPage({ params }: { params: Promise<{ id: string }>
     }
   }
 
+  const handleFileSelect = (file: File) => {
+    setSelectedFile(file)
+  }
+
+  const handleFileRemove = () => {
+    setSelectedFile(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!answer.trim() && !imageUrl.trim()) {
+    if (!answer.trim() && !selectedFile) {
       alert('回答を入力してください')
       return
     }
 
     setSubmitting(true)
     try {
+      let finalImageUrl = ''
+
+      // ファイルが選択されている場合はアップロード
+      if (selectedFile) {
+        setUploadingImage(true)
+        try {
+          const uploadResult = await uploadImage(selectedFile)
+          finalImageUrl = uploadResult.url
+        } catch (uploadError: any) {
+          throw new Error(`画像のアップロードに失敗しました: ${uploadError.message}`)
+        } finally {
+          setUploadingImage(false)
+        }
+      }
+
       const body: any = {}
       if (answer.trim()) body.content = answer
-      if (imageUrl.trim()) body.image_url = imageUrl
+      if (finalImageUrl) body.image_url = finalImageUrl
 
       const response = await apiClient(`/api/questions/${questionId}/options`, {
         method: 'POST',
@@ -263,31 +288,30 @@ export default function AnswerPage({ params }: { params: Promise<{ id: string }>
                     {question.question_type === 'both' && (
                       <p className="text-center text-sm text-gray-600 mb-4">または</p>
                     )}
+                    
+                    {/* ファイルアップロード */}
                     <div className="mb-4">
                       <div className="flex items-center gap-2 mb-2">
                         <ImageIcon className="w-4 h-4" />
-                        <label className="text-sm font-medium">画像URL</label>
+                        <label className="text-sm font-medium">画像ファイル</label>
                       </div>
-                      <Input
-                        type="url"
-                        placeholder="https://example.com/image.jpg"
-                        value={imageUrl}
-                        onChange={(e) => setImageUrl(e.target.value)}
-                        disabled={submitting}
+                      <FileUpload
+                        onFileSelect={handleFileSelect}
+                        onFileRemove={handleFileRemove}
+                        selectedFile={selectedFile}
+                        disabled={submitting || uploadingImage}
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        ※MVP版では画像URLの入力のみ対応
-                      </p>
                     </div>
+
                   </>
                 )}
 
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={submitting || (!answer.trim() && !imageUrl.trim())}
+                  disabled={submitting || uploadingImage || (!answer.trim() && !selectedFile)}
                 >
-                  {submitting ? '送信中...' : '回答を送信 &gt;&gt;'}
+                  {uploadingImage ? '画像アップロード中...' : submitting ? '送信中...' : '回答を送信 &gt;&gt;'}
                 </Button>
 
                 <p className="text-sm text-gray-500 text-center mt-4">
